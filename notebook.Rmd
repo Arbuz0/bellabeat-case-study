@@ -4,12 +4,11 @@ author: 'Łukasz Janiak'
 output: 
   html_document:
     code_folding: show
-date: 'in progress'
+date: '08-04-2022'
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#Sys.setlocale("LC_TIME", "Polish_Poland.1250")
 Sys.setlocale("LC_TIME", "C")
 ```
 
@@ -19,7 +18,9 @@ Questions for analysis:
 
 * What are some trends in smart device usage?
 * How could these trends apply to Bellabeat customers?
-* How could these trends help influence Bellabeat marketing strategy?
+
+The purpose of this analysis is to find trends in Fitbit tracking device usage and 
+use these insights to set Bellabeat development in the right direction.
 
 ## Data source
 
@@ -33,9 +34,10 @@ including minute-level output for physical activity, heart rate, and sleep monit
 Variation between output represents use of different types of Fitbit trackers and individual tracking behaviors / preferences.
 
 ## Data limitations
-* small sample
-* seasonal data
-* no metadata / lack of demographics
+* Small sample size - only 33 unique users took part in this survey
+* "Seasonal" data - data contains only records from one month preiod (may not be representative of the entire year)
+* No metadata - the data does not contain any demographic information,
+ so it may come from a specific group and not represent the general population
 
 ## Loading packages
 
@@ -116,6 +118,9 @@ str(weight_log)
 
 ## Data cleaning {.tabset}
 
+First, I'm going to check for any duplicates and remove if any occurs. 
+Then I'm going to split timestamps into two separate columns (date and time).
+
 ### Daily Activity
 
 ```{r, warning = FALSE}
@@ -136,8 +141,10 @@ sum(duplicated(hourly_calories))
 
 hourly_calories <- hourly_calories %>%
   clean_names() %>%
-  separate(col = activity_hour, into = c("date", "time"), sep = " ") %>%
-  mutate(date = mdy(date), day_of_week = weekdays(date))
+  separate(col = activity_hour, into = c("date", "time", "indicator"), sep = " ") %>% # nolint
+  mutate(time = paste(time, indicator, sep = " ")) %>%
+  mutate(date = mdy(date), time = format(strptime(time, "%I:%M:%S %p"), "%H:%M:%S"), day_of_week = weekdays(date)) %>% # nolint
+  subset(select = -c(indicator))
 
 head(hourly_calories)
 ```
@@ -149,8 +156,10 @@ sum(duplicated(hourly_intensities))
 
 hourly_intensities <- hourly_intensities %>%
   clean_names() %>%
-  separate(col = activity_hour, into = c("date", "time"), sep = " ") %>%
-  mutate(date = mdy(date), day_of_week = weekdays(date))
+  separate(col = activity_hour, into = c("date", "time", "indicator"), sep = " ") %>% # nolint
+  mutate(time = paste(time, indicator, sep = " ")) %>%
+  mutate(date = mdy(date), time = format(strptime(time, "%I:%M:%S %p"), "%H:%M:%S"), day_of_week = weekdays(date)) %>% # nolint
+  subset(select = -c(indicator))
 
 head(hourly_intensities)
 ```
@@ -162,8 +171,10 @@ sum(duplicated(hourly_steps))
 
 hourly_steps <- hourly_steps %>%
   clean_names() %>%
-  separate(col = activity_hour, into = c("date", "time"), sep = " ") %>%
-  mutate(date = mdy(date), day_of_week = weekdays(date))
+  separate(col = activity_hour, into = c("date", "time", "indicator"), sep = " ") %>% # nolint
+  mutate(time = paste(time, indicator, sep = " ")) %>%
+  mutate(date = mdy(date), time = format(strptime(time, "%I:%M:%S %p"), "%H:%M:%S"), day_of_week = weekdays(date)) %>% # nolint
+  subset(select = -c(indicator))
 
 head(hourly_steps)
 ```
@@ -177,8 +188,10 @@ sum(duplicated(sleep_day))
 
 sleep_day <- sleep_day %>%
   clean_names() %>%
-  separate(col = sleep_day, into = c("date", "time"), sep = " ") %>%
-  mutate(date = mdy(date), day_of_week = weekdays(date))
+  separate(col = sleep_day, into = c("date", "time", "indicator"), sep = " ") %>% # nolint
+  mutate(time = paste(time, indicator, sep = " ")) %>%
+  mutate(date = mdy(date), time = format(strptime(time, "%I:%M:%S %p"), "%H:%M:%S"), day_of_week = weekdays(date)) %>% # nolint
+  subset(select = -c(indicator))
 
 head(sleep_day)
 ```
@@ -190,8 +203,9 @@ sum(duplicated(heart_rate))
 
 heart_rate <- heart_rate %>%
   clean_names() %>%
-  separate(col = time, into = c("date", "time"), sep = " ") %>%
-  mutate(date = mdy(date), day_of_week = weekdays(date))
+  separate(col = time, into = c("date", "time", "indicator"), sep = " ") %>%
+  mutate(time = paste(time, indicator, sep = " ")) %>%
+  mutate(date = mdy(date), time = format(strptime(time, "%I:%M:%S %p"), "%H:%M:%S"),day_of_week = weekdays(date))  # nolint
 
 head(heart_rate)
 ```
@@ -277,6 +291,17 @@ activity %>%
 ```
 
 
+```{r}
+daily_activity %>%
+  mutate("active_minutes" = very_active_minutes +
+    fairly_active_minutes + lightly_active_minutes + sedentary_minutes) %>%
+  mutate("active_hours" = round(active_minutes / 60)) %>%
+  group_by(active_hours) %>%
+  summarise("days" = n()) %>%
+  ggplot() +
+    geom_col(mapping = aes(x = active_hours, y = days, fill = active_hours))
+```
+
 ```{r, class.source = 'fold-hide'}
 activity_percent <- activity %>%
   group_by(usage) %>%
@@ -320,23 +345,6 @@ sleep_day %>%
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-```{r, class.source = 'fold-hide', message = FALSE}
-activity_and_sleep %>%
-  merge(y = activity, by = "id", all = TRUE) %>%
-  group_by(date, usage) %>%
-  summarize("unique_users" = n_distinct(id)) %>%
-  ggplot() +
-    geom_smooth(mapping = aes(x = date, y = unique_users)) +
-    geom_point(mapping = aes(x = date, y = unique_users, color = usage)) +
-    labs(title = "Unique users over time",
-      subtitle = "Feature: Sleep tracker",
-      x = "Date",
-      y = "Unique users") +
-    scale_y_continuous(breaks = seq(0, 20, by = 2), limits = c(0, 20)) +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-    facet_wrap(~usage)
-```
-
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_steps_avg <- hourly_steps %>%
@@ -351,12 +359,23 @@ c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 
 daily_steps_avg %>%
   ggplot() +
-    geom_col(mapping = aes(x = day_of_week, y = steps_by_weekday, fill = day_of_week)) +
+    geom_col(mapping = aes(x = day_of_week, y = steps_by_weekday, fill = day_of_week)) + # nolint
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
 
-```{r, class.source = 'fold-hide'}
+```{r, class.source = 'fold-hide', message = FALSE}
+hourly_steps %>%
+  group_by(time) %>%
+  summarise(average_steps = mean(step_total)) %>%
+  ggplot() +
+    geom_point(mapping = aes(x = time, y = average_steps)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    scale_y_continuous(breaks = seq(0, 900, by = 100), limits = c(0, 900))
+```
+
+
+```{r, class.source = 'fold-hide', message = FALSE}
 daily_calories_avg <- hourly_calories %>%
   group_by(date, id, day_of_week) %>%
   summarise(calories_by_day = sum(calories)) %>%
@@ -364,13 +383,56 @@ daily_calories_avg <- hourly_calories %>%
   summarise(calories_by_weekday = mean(calories_by_day))
 
   
-daily_calories_avg$day_of_week <- ordered(daily_calories_avg$day_of_week, levels =
+daily_calories_avg$day_of_week <- ordered(daily_calories_avg$day_of_week, levels = # nolint
 c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 
 daily_calories_avg %>%
   ggplot() +
-    geom_col(mapping = aes(x = day_of_week, y = calories_by_weekday, fill = day_of_week)) +
+    geom_col(mapping = aes(x = day_of_week, y = calories_by_weekday, fill = day_of_week)) + # nolint
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
+
+
+```{r, class.source = 'fold-hide', message = FALSE}
+hourly_calories %>%
+  group_by(time) %>%
+  summarise(average_calories = mean(calories)) %>%
+  ggplot() +
+    geom_point(mapping = aes(x = time, y = average_calories)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    scale_y_continuous(breaks = seq(0, 150, by = 20), limits = c(0, 150))
+```
+
+
+
+```{r, class.source = 'fold-hide', message = FALSE}
+daily_intensity_avg <- hourly_intensities %>%
+  group_by(date, id, day_of_week) %>%
+  summarise(intensity_by_day = sum(total_intensity) / 24) %>%
+  group_by(day_of_week) %>%
+  summarise(intensity_by_weekday = mean(intensity_by_day))
+
+  
+daily_intensity_avg$day_of_week <- ordered(daily_intensity_avg$day_of_week, levels = # nolint
+c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+daily_intensity_avg %>%
+  ggplot() +
+    geom_col(mapping = aes(x = day_of_week, y = intensity_by_weekday, fill = day_of_week)) + # nolint
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+
+```{r, class.source = 'fold-hide', message = FALSE}
+hourly_intensities %>%
+  group_by(time) %>%
+  summarise(average_intensity = mean(total_intensity)) %>%
+  ggplot() +
+    geom_point(mapping = aes(x = time, y = average_intensity)) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    scale_y_continuous(breaks = seq(0, 25, by = 2), limits = c(0, 25))
+```
+
+
 
 ## Summary
