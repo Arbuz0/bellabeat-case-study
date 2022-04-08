@@ -35,6 +35,7 @@ Variation between output represents use of different types of Fitbit trackers an
 
 
 ## Data limitations
+
 * Small sample size - only 33 unique users took part in this survey
 * "Seasonal" data - data contains only records from **one month period** (may not be representative of the entire year)
 * No metadata - the data does not contain any demographic information,
@@ -120,7 +121,8 @@ str(weight_log)
 ## Data cleaning {.tabset}
 
 Processes done during this phase:   
-* finding and removinge any duplicates  
+
+* finding and removing any duplicates  
 * splitting timestamps into two separate columns (date and time of day)  
 * making column names formatting consistent (snake_case)  
 
@@ -259,12 +261,13 @@ daily_activity %>%
 
 In **'daily_activity'** table every measure category minimum is 0. 
 More data is needed to determine the cause or even if data is valid. 
-For the further analysis I'm going to assume the data is correct.
+For further analysis I'm going to assume the data is correct.
 
 Now let's split users into 3 groups (depending on their daily activity).
 I will mostly focus on users who used at least once daily activity tracking and sleep tracking features.  
 
 Usage groups:   
+
 * 0 - 10 days of activity -> low use  
 * 11 - 20 days of activity -> moderate use  
 * 21 - 31 days of activity -> high use
@@ -309,12 +312,12 @@ head(activity_percent)
 ```
 
 **Conclusions**:   
-* Half of the users used app for atleast 21 days.  
-* Moderate users (11 - 20) are only one-tenth of all users.  
-* People tends to use app either on daily basis or only once per 3 or more days  
-* Around 40% users use app only every 3 or more days   
 
-There is no point in analyzing this 3 groups separately because of to small amount of samples in each one.
+* Half of the users used app for at least 21 days  
+* Moderate users (11 - 20) are only one-tenth of all users.  
+* Around 40% users use app only once every 3 or even less often    
+
+There is no point in analyzing this 3 groups separately because of too small amount of samples in each one.
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_activity %>%
@@ -377,6 +380,7 @@ activity_and_sleep %>%
 ```
 
 **Conclusions**:   
+
 * We can split users into 2 groups: one using device a whole day
 and the other using it for about 2/3 of the day (only daily activity).  
 * Interestingly, majority of people who use both sleep and daily activity
@@ -414,6 +418,7 @@ sleep_day %>%
 ```
 
 **Conclusions**:   
+
 * After around 2 weeks user base starts to decrease (both features)  
 * The rate of decline is only increasing  
 
@@ -451,6 +456,7 @@ hourly_steps %>%
 ```
 
 **Conclusions**:   
+
 * On average people walk slightly less in the middle of the week  
 * Visible minimum is on Sunday  
 * Most of the steps are taken from 8:00 to 19:00  
@@ -489,6 +495,7 @@ hourly_calories %>%
 ```
 
 **Conclusions**:   
+
 * On average people eat slightly less during Thursdays and Sundays  
 * Average calories intake during night hours is surprisingly high  
 
@@ -526,9 +533,10 @@ hourly_intensities %>%
 ```
 
 **Conclusions**:   
-* On average people tends to be slightly less active in the middle of the week  
+
+* On average people tend to be slightly less active in the middle of the week  
 * Visible minimum is on Sunday  
-* Hourly intensity is similarly distributed to steps per hour  
+* Hourly intensity is distributed similarly to steps per hour  
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_sleep_avg <- sleep_day %>%
@@ -549,6 +557,7 @@ daily_sleep_avg %>%
 ```
 
 **Conclusions**:   
+
 * On average people tends to sleep more during weekends  
 * Sudden peak on Wednesdays, need more data to explain  
 * Daily people spend `r round(mean(sleep_day$total_time_in_bed))` minutes in bed  
@@ -558,13 +567,15 @@ daily_sleep_avg %>%
 ## Summary
 
 **Found insights**:   
-* User base start to decrease after 2 weeks  
+
+* User base starts to decrease after 2 weeks  
 * Half of users use it on daily basis  
 * Most of the users use the device for either entire day or around 2/3 of a day  
 * Average steps and intensity minimal on Sundays  
 * Around 40% users use app only every 3 or more days 
 
 **Recomendations**:   
-* making a survey to understand why peaople are leaving after 2 weeks  
+
+* making a survey to understand why people are leaving after 2 weeks  
 * sending out notifications on Sundays to remind people of staying active  
 * finding ways to make product more attractive for people who use it rarely  
