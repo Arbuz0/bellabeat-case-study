@@ -551,8 +551,8 @@ daily_sleep_avg %>%
 **Conclusions**:   
 * On average people tends to sleep more during weekends  
 * Sudden peak on Wednesdays, need more data to explain  
-* Daily people spend in bed `r round(mean(sleep_day$total_time_in_bed))` minutes in bed  
-* Daily people spend in bed `r round(mean(sleep_day$total_minutes_asleep))` minutes in bed  
+* Daily people spend `r round(mean(sleep_day$total_time_in_bed))` minutes in bed  
+* Daily people spend `r round(mean(sleep_day$total_minutes_asleep))` minutes asleep  
 * On average peaople sleep `r round(mean(sleep_day$total_sleep_records), 1)` times per day  
 
 ## Summary
