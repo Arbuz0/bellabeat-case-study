@@ -33,9 +33,10 @@ Thirty eligible Fitbit users consented to the submission of personal tracker dat
 including minute-level output for physical activity, heart rate, and sleep monitoring. 
 Variation between output represents use of different types of Fitbit trackers and individual tracking behaviors / preferences.
 
+
 ## Data limitations
 * Small sample size - only 33 unique users took part in this survey
-* "Seasonal" data - data contains only records from one month preiod (may not be representative of the entire year)
+* "Seasonal" data - data contains only records from **one month period** (may not be representative of the entire year)
 * No metadata - the data does not contain any demographic information,
  so it may come from a specific group and not represent the general population
 
@@ -118,8 +119,10 @@ str(weight_log)
 
 ## Data cleaning {.tabset}
 
-First, I'm going to check for any duplicates and remove if any occurs. 
-Then I'm going to split timestamps into two separate columns (date and time).
+Processes done during this phase:   
+* finding and removinge any duplicates  
+* splitting timestamps into two separate columns (date and time of day)  
+* making column names formatting consistent (snake_case)  
 
 ### Daily Activity
 
@@ -246,23 +249,25 @@ to **`r max(weight_log$date)`** and contains **`r n_distinct(weight_log$id)`** u
 For further analysis I am going to leave out **'weight_log'** and **'heart_rate'** 
 because of insufficient number of unique users.
 
+## Analysis
+
 ```{r}
 daily_activity %>%
   select(total_steps, total_distance, calories) %>%
   summary()
-
-daily_activity %>%
-  select(very_active_minutes, fairly_active_minutes, lightly_active_minutes, sedentary_minutes) %>% # nolint
-  summary()
 ```
 
 In **'daily_activity'** table every measure category minimum is 0. 
-The most likely cause is missing data due to users not using app. More data is needed to determine it. 
-Need to be careful about that in future steps.
+More data is needed to determine the cause or even if data is valid. 
+For the further analysis I'm going to assume the data is correct.
 
-## Analysis
+Now let's split users into 3 groups (depending on their daily activity).
+I will mostly focus on users who used at least once daily activity tracking and sleep tracking features.  
 
-Let's make an auxiliary data frame, which will divide users into 3 groups (high active, moderete active, lowly activity).
+Usage groups:   
+* 0 - 10 days of activity -> low use  
+* 11 - 20 days of activity -> moderate use  
+* 21 - 31 days of activity -> high use
 
 ```{r}
 activity_and_sleep <- merge(daily_activity, sleep_day, by = c("id", "date"))
@@ -280,26 +285,16 @@ activity <- activity_and_sleep %>%
 head(activity)
 ```
 
-
 ```{r, class.source = 'fold-hide'}
 activity %>%
     group_by(usage) %>%
     summarise(total = n_distinct(id)) %>%
     ggplot() +
       geom_col(mapping = aes(x = usage, y = total, fill = usage)) +
-      scale_y_continuous(breaks = seq(0, 13, by = 1), limits = c(0, 13))
-```
-
-
-```{r}
-daily_activity %>%
-  mutate("active_minutes" = very_active_minutes +
-    fairly_active_minutes + lightly_active_minutes + sedentary_minutes) %>%
-  mutate("active_hours" = round(active_minutes / 60)) %>%
-  group_by(active_hours) %>%
-  summarise("days" = n()) %>%
-  ggplot() +
-    geom_col(mapping = aes(x = active_hours, y = days, fill = active_hours))
+      scale_y_continuous(breaks = seq(0, 13, by = 1), limits = c(0, 13)) +
+      labs(x = "type of usage", y = "number of users",
+      title = "Number of users per usage type",
+      caption = "Only counted for people using both sleep tracking and daily activity") # nolint
 ```
 
 ```{r, class.source = 'fold-hide'}
@@ -313,6 +308,80 @@ activity_percent <- activity %>%
 head(activity_percent)
 ```
 
+**Conclusions**:   
+* Half of the users used app for atleast 21 days.  
+* Moderate users (11 - 20) are only one-tenth of all users.  
+* People tends to use app either on daily basis or only once per 3 or more days  
+* Around 40% users use app only every 3 or more days   
+
+There is no point in analyzing this 3 groups separately because of to small amount of samples in each one.
+
+```{r, class.source = 'fold-hide', message = FALSE}
+daily_activity %>%
+  mutate("active_minutes" = very_active_minutes +
+    fairly_active_minutes + lightly_active_minutes + sedentary_minutes) %>%
+  mutate("active_hours" = round(active_minutes / 60)) %>%
+  group_by(active_hours) %>%
+  summarise("days" = n()) %>%
+  ggplot() +
+    geom_col(mapping = aes(x = active_hours, y = days, fill = active_hours)) +
+    labs(x = "active hours", y = "number of days",
+      title = "Number of days per number of active hours in a day",
+      caption = "Considering 33 users") # nolint
+```
+
+```{r, class.source = 'fold-hide', message = FALSE}
+activity_and_sleep %>%
+  mutate("active_minutes" = very_active_minutes +
+    fairly_active_minutes + lightly_active_minutes + sedentary_minutes) %>%
+  mutate("active_hours" = round(active_minutes / 60)) %>%
+  group_by(active_hours) %>%
+  summarise("days" = n()) %>%
+  ggplot() +
+    geom_col(mapping = aes(x = active_hours, y = days, fill = active_hours)) +
+    labs(x = "active hours", y = "number of days",
+      title = "Number of days per number of active hours in a day",
+      caption = "Only counted for people using both sleep tracking and daily activity") # nolint
+```
+
+```{r, class.source = 'fold-hide', message = FALSE}
+daily_activity %>%
+  mutate("active_minutes" = very_active_minutes +
+    fairly_active_minutes + lightly_active_minutes + sedentary_minutes) %>%
+  mutate("active_hours" = round(active_minutes / 60)) %>%
+  group_by(active_hours) %>%
+  summarise("days" = n()) %>%
+  ggplot() +
+    geom_col(mapping = aes(x = active_hours, y = days, fill = active_hours)) +
+    scale_x_binned(n.breaks = 3) +
+    labs(x = "active hours", y = "number of days",
+      title = "Number of days per number of active hours in a day",
+      subtitle = "Grouped into 3 categories",
+      caption = "Considering all 33 users") # nolint
+```
+
+```{r, class.source = 'fold-hide', message = FALSE}
+activity_and_sleep %>%
+  mutate("active_minutes" = very_active_minutes +
+    fairly_active_minutes + lightly_active_minutes + sedentary_minutes) %>%
+  mutate("active_hours" = round(active_minutes / 60)) %>%
+  group_by(active_hours) %>%
+  summarise("days" = n()) %>%
+  ggplot() +
+    geom_col(mapping = aes(x = active_hours, y = days, fill = active_hours)) +
+    scale_x_binned(n.breaks = 3) +
+    labs(x = "active hours", y = "number of days",
+      title = "Number of days per number of active hours in a day",
+      subtitle = "Grouped into 3 categories",
+      caption = "Only counted for people using both sleep tracking and daily activity") # nolint
+```
+
+**Conclusions**:   
+* We can split users into 2 groups: one using device a whole day
+and the other using it for about 2/3 of the day (only daily activity).  
+* Interestingly, majority of people who use both sleep and daily activity
+tracking fall into category 15 - 20 hours per day and only a small group uses
+device for an entire day  
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_activity %>%
@@ -329,7 +398,6 @@ daily_activity %>%
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
-
 ```{r, class.source = 'fold-hide', message = FALSE}
 sleep_day %>%
   group_by(date) %>%
@@ -345,6 +413,9 @@ sleep_day %>%
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 ```
 
+**Conclusions**:   
+* After around 2 weeks user base starts to decrease (both features)  
+* The rate of decline is only increasing  
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_steps_avg <- hourly_steps %>%
@@ -360,9 +431,11 @@ c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 daily_steps_avg %>%
   ggplot() +
     geom_col(mapping = aes(x = day_of_week, y = steps_by_weekday, fill = day_of_week)) + # nolint
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    labs(x = "day of the week", y = "steps",
+      title = "Average steps taken per week of the day",
+      caption = "Considering all 33 users")
 ```
-
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 hourly_steps %>%
@@ -371,9 +444,16 @@ hourly_steps %>%
   ggplot() +
     geom_point(mapping = aes(x = time, y = average_steps)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-    scale_y_continuous(breaks = seq(0, 900, by = 100), limits = c(0, 900))
+    scale_y_continuous(breaks = seq(0, 900, by = 100), limits = c(0, 900)) +
+    labs(x = "hour of the day", y = "steps",
+      title = "Average steps taken per hour of the day",
+      caption = "Considering all 33 users")
 ```
 
+**Conclusions**:   
+* On average people walk slightly less in the middle of the week  
+* Visible minimum is on Sunday  
+* Most of the steps are taken from 8:00 to 19:00  
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_calories_avg <- hourly_calories %>%
@@ -389,9 +469,11 @@ c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 daily_calories_avg %>%
   ggplot() +
     geom_col(mapping = aes(x = day_of_week, y = calories_by_weekday, fill = day_of_week)) + # nolint
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    labs(x = "day of the week", y = "calories",
+      title = "Average calories eaten per week of the day",
+      caption = "Considering all 33 users")
 ```
-
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 hourly_calories %>%
@@ -400,10 +482,15 @@ hourly_calories %>%
   ggplot() +
     geom_point(mapping = aes(x = time, y = average_calories)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-    scale_y_continuous(breaks = seq(0, 150, by = 20), limits = c(0, 150))
+    scale_y_continuous(breaks = seq(0, 150, by = 20), limits = c(0, 150)) +
+    labs(x = "hour of the day", y = "calories",
+      title = "Average calories eaten per hour of the day",
+      caption = "Considering all 33 users")
 ```
 
-
+**Conclusions**:   
+* On average people eat slightly less during Thursdays and Sundays  
+* Average calories intake during night hours is surprisingly high  
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 daily_intensity_avg <- hourly_intensities %>%
@@ -419,9 +506,11 @@ c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
 daily_intensity_avg %>%
   ggplot() +
     geom_col(mapping = aes(x = day_of_week, y = intensity_by_weekday, fill = day_of_week)) + # nolint
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    labs(x = "day of the week", y = "intensity",
+      title = "Average intensity per week of the day",
+      caption = "Considering all 33 users")
 ```
-
 
 ```{r, class.source = 'fold-hide', message = FALSE}
 hourly_intensities %>%
@@ -430,9 +519,52 @@ hourly_intensities %>%
   ggplot() +
     geom_point(mapping = aes(x = time, y = average_intensity)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
-    scale_y_continuous(breaks = seq(0, 25, by = 2), limits = c(0, 25))
+    scale_y_continuous(breaks = seq(0, 25, by = 2), limits = c(0, 25)) +
+    labs(x = "hour of the day", y = "intensity",
+      title = "Average intensity per hour of the day",
+      caption = "Considering all 33 users")
 ```
 
+**Conclusions**:   
+* On average people tends to be slightly less active in the middle of the week  
+* Visible minimum is on Sunday  
+* Hourly intensity is similarly distributed to steps per hour  
 
+```{r, class.source = 'fold-hide', message = FALSE}
+daily_sleep_avg <- sleep_day %>%
+  group_by(day_of_week) %>%
+  summarise(sleep_by_weekday = mean(total_minutes_asleep))
+
+  
+daily_sleep_avg$day_of_week <- ordered(daily_sleep_avg$day_of_week, levels = # nolint
+c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+daily_sleep_avg %>%
+  ggplot() +
+    geom_col(mapping = aes(x = day_of_week, y = sleep_by_weekday, fill = day_of_week)) + # nolint
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    labs(x = "day of the week", y = "minutes of sleep",
+      title = "Average length of sleep per week of the day",
+      caption = "Considering 24 sleep tracker users")
+```
+
+**Conclusions**:   
+* On average people tends to sleep more during weekends  
+* Sudden peek on Wednesdays, need more data to explain  
+* Daily people spend in bed `r round(mean(sleep_day$total_time_in_bed))` minutes in bed  
+* Daily people spend in bed `r round(mean(sleep_day$total_minutes_asleep))` minutes in bed  
+* On average peaople sleep `r round(mean(sleep_day$total_sleep_records), 1)` times per day  
 
 ## Summary
+
+**Found insights**:   
+* User base start to decrease after 2 weeks  
+* Half of users use it on daily basis  
+* Most of the users use the device for either entire day or around 2/3 of a day  
+* Average steps and intensity minimal on Sundays  
+* Around 40% users use app only every 3 or more days 
+
+**Recomendations**:   
+* making a survey to understand why peaople are leaving after 2 weeks  
+* sending out notifications on Sundays to remind people of staying active  
+* finding ways to make product more attractive for people who use it rarely  
